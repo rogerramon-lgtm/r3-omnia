@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>R³ Omnia — Àurea Baby</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#c9a96e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="R³ Omnia">
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body,#root{height:100%;width:100%;overflow:hidden}
+    body{background:#080808;color:#e5e5e5;font-family:'DM Mono','Courier New',monospace;font-size:13px}
+    ::-webkit-scrollbar{width:4px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:2px}
+    input,button,textarea{font-family:inherit}
+    input::placeholder{color:#444}
+    @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+    @keyframes bounce{0%,100%{transform:translateY(0);opacity:.4}50%{transform:translateY(-4px);opacity:1}}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .msg-in{animation:fadeIn .2s ease}
+    @media(max-width:768px){.desktop-only{display:none!important}.mobile-nav{display:flex!important}}
+    @media(min-width:769px){.mobile-nav{display:none!important}.desktop-sidebar{display:flex!important}}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback}=React;
+
+const G='#c9a96e',BG='#080808',SF='#111111',BD='#1e1e1e',TX='#e5e5e5',MT='#555555';
+
+const AGENTS=[
+  {id:'omnia',      name:'Omnia Core',       icon:'⬡',color:'#c9a96e',role:'Orquestrador Central — controla todos os agentes'},
+  {id:'ceo',        name:'Diretor Executivo', icon:'★',color:'#f0d080',role:'Estratégia, metas e decisões de crescimento'},
+  {id:'operational',name:'Operacional',       icon:'⚙',color:'#60a5fa',role:'Pedidos, prazos e fluxo de operações diárias'},
+  {id:'financial',  name:'Financeiro',        icon:'◈',color:'#34d399',role:'Receita, margem, fluxo de caixa e rentabilidade'},
+  {id:'inventory',  name:'Estoque',           icon:'▣',color:'#f59e0b',role:'Controle de SKUs, alertas de ruptura e reposição'},
+  {id:'marketing',  name:'Marketing',         icon:'◉',color:'#a78bfa',role:'Campanhas, anúncios, Meta Ads e Google Ads'},
+  {id:'marketplace',name:'Marketplace',       icon:'◎',color:'#fb7185',role:'Mercado Livre, Shopee, Amazon, TikTok Shop'},
+  {id:'content',    name:'Conteúdo',          icon:'✦',color:'#38bdf8',role:'Textos, roteiros, descrições e copy de produto'},
+  {id:'suppliers',  name:'Fornecedores',      icon:'◆',color:'#fbbf24',role:'Sourcing, cotação, margem e seleção de fornecedores'},
+  {id:'support',    name:'Atendimento',       icon:'◌',color:'#4ade80',role:'SAC, dúvidas de clientes e gestão de reclamações'},
+  {id:'products',   name:'Produtos',          icon:'◑',color:'#e879f9',role:'Análise de portfólio, curva ABC e precificação'},
+];
+
+const NAV=[
+  {id:'dashboard',label:'Dashboard',icon:'◈'},
+  {id:'agents',   label:'Agentes',  icon:'⬡'},
+  {id:'chat',     label:'Chat IA',  icon:'◌'},
+  {id:'tasks',    label:'Tarefas',  icon:'▣'},
+  {id:'approvals',label:'Aprovar',  icon:'✦'},
+];
+
+const METRICS=[
+  {label:'Faturamento Hoje',value:'R$ 4.820',delta:'+12% vs ontem',up:true,icon:'◈'},
+  {label:'Pedidos em Aberto',value:'7',delta:'2 com atraso',up:false,icon:'▣'},
+  {label:'Ticket Médio',value:'R$ 689',delta:'+5% na semana',up:true,icon:'◉'},
+  {label:'Alertas Ativos',value:'3',delta:'1 crítico',up:false,icon:'⚠'},
+];
+const ALERTS=[
+  {agent:'Estoque',text:'Berço Montessori Premium: apenas 2 unidades restantes',level:'critical',time:'12min'},
+  {agent:'Financeiro',text:'Margem no Shopee abaixo de 18% nos últimos 7 dias',level:'warning',time:'1h'},
+  {agent:'Marketing',text:'CTR dos anúncios Instagram caiu 22% esta semana',level:'warning',time:'3h'},
+];
+const APPROVALS=[
+  {agent:'Marketplace',icon:'◎',color:'#fb7185',title:'Ajuste de Preço — Mercado Livre',desc:'Reduzir Berço Americano de R$ 1.290 para R$ 1.190 (−7,7%) para acompanhar concorrência identificada.',risk:'MÉDIO',exp:'2h 14min'},
+  {agent:'Marketing',icon:'◉',color:'#a78bfa',title:'Pausar Campanha — Instagram',desc:'Pausar campanha "Enxoval Completo" com ROAS 1.2 (mínimo 2.0). Economia: R$ 45/dia.',risk:'BAIXO',exp:'5h 40min'},
+];
+const TASKS=[
+  {agent:'Operacional',icon:'⚙',color:'#60a5fa',status:'CONCLUÍDO',time:'08:00',txt:'7 pedidos analisados. 2 com risco de atraso identificados.'},
+  {agent:'Estoque',icon:'▣',color:'#f59e0b',status:'CONCLUÍDO',time:'08:05',txt:'2 SKUs em situação crítica. Alerta gerado.'},
+  {agent:'Financeiro',icon:'◈',color:'#34d399',status:'CONCLUÍDO',time:'18:00',txt:'Faturamento: R$ 4.820. Margem média: 31,4%.'},
+  {agent:'Marketplace',icon:'◎',color:'#fb7185',status:'AGUARDANDO APROVAÇÃO',time:'14:22',txt:'Sugere redução de preço no ML. Aguarda confirmação.'},
+];
+
+function Sidebar({active,setActive}){
+  return(
+    <div className="desktop-sidebar" style={{width:220,background:SF,borderRight:`1px solid ${BD}`,flexDirection:'column',flexShrink:0,display:'none'}}>
+      <div style={{padding:'20px 16px',borderBottom:`1px solid ${BD}`}}>
+        <div style={{color:G,fontWeight:700,fontSize:15,letterSpacing:2}}>R³ OMNIA</div>
+        <div style={{color:MT,fontSize:10,letterSpacing:1,marginTop:3}}>ÀUREA BABY STORE</div>
+      </div>
+      <nav style={{padding:'10px 8px',flex:1}}>
+        {NAV.map(n=>(
+          <button key={n.id} onClick={()=>setActive(n.id)} style={{
+            display:'flex',alignItems:'center',gap:10,width:'100%',padding:'9px 10px',
+            borderRadius:6,cursor:'pointer',textAlign:'left',fontSize:12,letterSpacing:.5,
+            transition:'all .15s',marginBottom:2,border:'none',
+            background:active===n.id?`${G}18`:'transparent',
+            color:active===n.id?G:'#777',
+            outline:active===n.id?`1px solid ${G}33`:'1px solid transparent',
+          }}><span style={{fontSize:14}}>{n.icon}</span>{n.label}</button>
+        ))}
+      </nav>
+      <div style={{padding:'12px 16px',borderTop:`1px solid ${BD}`}}>
+        <div style={{display:'flex',alignItems:'center',gap:6,color:'#777',fontSize:11}}>
+          <div style={{width:6,height:6,borderRadius:'50%',background:'#34d399',boxShadow:'0 0 6px #34d399'}}/>
+          Sistema Operacional
+        </div>
+        <div style={{color:MT,fontSize:10,marginTop:4}}>11 agentes ativos</div>
+      </div>
+    </div>
+  );
+}
+
+function BottomNav({active,setActive}){
+  return(
+    <div className="mobile-nav" style={{borderTop:`1px solid ${BD}`,background:SF,padding:'6px 0 10px',flexShrink:0}}>
+      {NAV.map(n=>(
+        <button key={n.id} onClick={()=>setActive(n.id)} style={{
+          flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3,
+          background:'none',border:'none',cursor:'pointer',padding:'4px 0',
+          color:active===n.id?G:'#555',
+        }}>
+          <span style={{fontSize:15}}>{n.icon}</span>
+          <span style={{fontSize:9,letterSpacing:.3}}>{n.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Dashboard({setAgent,setActive}){
+  return(
+    <div style={{padding:16,overflow:'auto',height:'100%'}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10,marginBottom:16}}>
+        {METRICS.map((m,i)=>(
+          <div key={i} style={{background:SF,border:`1px solid ${BD}`,borderRadius:8,padding:'14px 14px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+              <span style={{color:MT,fontSize:9,letterSpacing:1}}>{m.label.toUpperCase()}</span>
+              <span style={{color:G,fontSize:15}}>{m.icon}</span>
+            </div>
+            <div style={{fontSize:22,fontWeight:700,color:TX,marginBottom:4}}>{m.value}</div>
+            <div style={{fontSize:10,color:m.up?'#34d399':'#f87171'}}>{m.delta}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:10}}>
+        <div style={{background:SF,border:`1px solid ${BD}`,borderRadius:8,padding:14}}>
+          <div style={{color:G,fontSize:9,letterSpacing:2,marginBottom:12}}>⚠ ALERTAS ATIVOS</div>
+          {ALERTS.map((a,i)=>(
+            <div key={i} style={{marginBottom:i<ALERTS.length-1?10:0,paddingBottom:i<ALERTS.length-1?10:0,borderBottom:i<ALERTS.length-1?`1px solid ${BD}`:'none'}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                <span style={{fontSize:9,color:a.level==='critical'?'#ef4444':'#f59e0b',letterSpacing:1}}>{a.agent.toUpperCase()}</span>
+                <span style={{fontSize:9,color:MT}}>há {a.time}</span>
+              </div>
+              <div style={{color:'#bbb',fontSize:12,lineHeight:1.4}}>{a.text}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{background:SF,border:`1px solid ${BD}`,borderRadius:8,padding:14}}>
+          <div style={{color:G,fontSize:9,letterSpacing:2,marginBottom:12}}>⬡ CHAT RÁPIDO COM AGENTE</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+            {AGENTS.slice(0,6).map(ag=>(
+              <button key={ag.id} onClick={()=>{setAgent(ag);setActive('chat');}} style={{
+                background:'#151515',border:`1px solid ${BD}`,borderRadius:6,
+                padding:'10px',cursor:'pointer',textAlign:'left',transition:'all .15s',
+              }}
+              onMouseEnter={e=>e.currentTarget.style.borderColor=ag.color}
+              onMouseLeave={e=>e.currentTarget.style.borderColor=BD}>
+                <div style={{color:ag.color,fontSize:16,marginBottom:4}}>{ag.icon}</div>
+                <div style={{color:'#ccc',fontSize:11,lineHeight:1.3}}>{ag.name}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AgentsGrid({setAgent,setActive}){
+  return(
+    <div style={{padding:16,overflow:'auto',height:'100%'}}>
+      <div style={{color:MT,fontSize:11,marginBottom:14}}>Toque em um agente para iniciar a conversa</div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:10}}>
+        {AGENTS.map(ag=>(
+          <button key={ag.id} onClick={()=>{setAgent(ag);setActive('chat');}} style={{
+            background:SF,border:`1px solid ${BD}`,borderRadius:8,padding:14,
+            cursor:'pointer',textAlign:'left',transition:'all .2s',
+          }}
+          onMouseEnter={e=>{e.currentTarget.style.borderColor=ag.color;e.currentTarget.style.background=`${ag.color}0a`;}}
+          onMouseLeave={e=>{e.currentTarget.style.borderColor=BD;e.currentTarget.style.background=SF;}}>
+            <div style={{fontSize:22,color:ag.color,marginBottom:10}}>{ag.icon}</div>
+            <div style={{fontWeight:600,color:TX,marginBottom:4,fontSize:12}}>{ag.name}</div>
+            <div style={{color:MT,fontSize:10,lineHeight:1.4}}>{ag.role}</div>
+            <div style={{display:'flex',alignItems:'center',gap:4,marginTop:10}}>
+              <div style={{width:5,height:5,borderRadius:'50%',background:'#34d399'}}/>
+              <span style={{color:'#34d399',fontSize:9}}>Ativo</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TasksView(){
+  return(
+    <div style={{padding:16,overflow:'auto',height:'100%'}}>
+      {TASKS.map((t,i)=>(
+        <div key={i} style={{background:SF,border:`1px solid ${BD}`,borderRadius:8,padding:'12px 14px',marginBottom:8,display:'flex',alignItems:'center',gap:12}}>
+          <span style={{color:t.color,fontSize:18,width:22,flexShrink:0}}>{t.icon}</span>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:3,flexWrap:'wrap',gap:4}}>
+              <span style={{color:TX,fontSize:12,fontWeight:600}}>{t.agent}</span>
+              <span style={{color:MT,fontSize:10}}>hoje {t.time}</span>
+            </div>
+            <div style={{color:'#999',fontSize:11,lineHeight:1.4}}>{t.txt}</div>
+          </div>
+          <span style={{fontSize:9,padding:'3px 7px',borderRadius:3,letterSpacing:.4,flexShrink:0,
+            background:t.status==='CONCLUÍDO'?'#34d39915':'#f59e0b15',
+            color:t.status==='CONCLUÍDO'?'#34d399':'#f59e0b',
+            border:`1px solid ${t.status==='CONCLUÍDO'?'#34d39930':'#f59e0b30'}`,
+          }}>{t.status}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ApprovalsView(){
+  const [done,setDone]=useState({});
+  return(
+    <div style={{padding:16,overflow:'auto',height:'100%'}}>
+      <div style={{color:MT,fontSize:11,marginBottom:14}}>{APPROVALS.length} decisões aguardam sua aprovação</div>
+      {APPROVALS.map((a,i)=>(
+        <div key={i} style={{background:SF,border:`1px solid ${done[i]?'#2a2a2a':BD}`,borderRadius:8,padding:16,marginBottom:12,opacity:done[i]?.5:1,transition:'opacity .3s'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10,gap:8}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,minWidth:0}}>
+              <span style={{color:a.color,fontSize:18,flexShrink:0}}>{a.icon}</span>
+              <div style={{minWidth:0}}>
+                <div style={{fontWeight:600,color:TX,fontSize:12}}>{a.title}</div>
+                <div style={{color:MT,fontSize:10,marginTop:1}}>Agente {a.agent} · expira em {a.exp}</div>
+              </div>
+            </div>
+            <span style={{fontSize:9,letterSpacing:.5,padding:'3px 7px',borderRadius:3,flexShrink:0,
+              background:a.risk==='MÉDIO'?'#f59e0b15':'#34d39915',
+              color:a.risk==='MÉDIO'?'#f59e0b':'#34d399',
+              border:`1px solid ${a.risk==='MÉDIO'?'#f59e0b30':'#34d39930'}`,
+            }}>RISCO {a.risk}</span>
+          </div>
+          <div style={{color:'#aaa',fontSize:12,lineHeight:1.5,marginBottom:14}}>{a.desc}</div>
+          {!done[i]?(
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              <button onClick={()=>setDone(d=>({...d,[i]:'approved'}))} style={{padding:'7px 16px',borderRadius:5,background:'#34d39918',border:'1px solid #34d39940',color:'#34d399',cursor:'pointer',fontSize:12,fontFamily:'inherit'}}>✓ Aprovar</button>
+              <button onClick={()=>setDone(d=>({...d,[i]:'rejected'}))} style={{padding:'7px 16px',borderRadius:5,background:'#ef444418',border:'1px solid #ef444440',color:'#ef4444',cursor:'pointer',fontSize:12,fontFamily:'inherit'}}>✕ Rejeitar</button>
+            </div>
+          ):(
+            <div style={{fontSize:11,color:done[i]==='approved'?'#34d399':'#ef4444'}}>
+              {done[i]==='approved'?'✓ Aprovado':'✕ Rejeitado'} · agente notificado
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ChatView({agent,setAgent}){
+  const [msgs,setMsgs]=useState([{role:'assistant',text:`Olá, Roger! Sou o **${agent.name}**.\n\nComo posso ajudar a Àurea Baby Store agora?`}]);
+  const [input,setInput]=useState('');
+  const [loading,setLoading]=useState(false);
+  const [stream,setStream]=useState('');
+  const endRef=useRef(null);
+  const inputRef=useRef(null);
+
+  useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'})},[msgs,stream]);
+
+  const switchAgent=useCallback((ag)=>{
+    setAgent(ag);
+    setMsgs([{role:'assistant',text:`Olá, Roger! Sou o **${ag.name}**.\n\nComo posso ajudar a Àurea Baby Store agora?`}]);
+    setStream('');setInput('');
+    inputRef.current?.focus();
+  },[setAgent]);
+
+  const send=async()=>{
+    if(!input.trim()||loading)return;
+    const txt=input.trim();
+    setMsgs(m=>[...m,{role:'user',text:txt}]);
+    setInput('');setLoading(true);setStream('');
+    try{
+      const r=await fetch('/api/chat',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:1000,
+          system:`Você é o agente "${agent.name}" do sistema R³ Omnia da Àurea Baby Store, uma loja premium de produtos infantis em Caçapava, Brasil. Função: ${agent.role}. Responda de forma objetiva e profissional. Use dados fictícios realistas quando precisar de números da loja. Responda sempre em português do Brasil. Seja direto e útil.`,
+          messages:[...msgs,{role:'user',text:txt}].map(m=>({role:m.role==='user'?'user':'assistant',content:m.text})),
+        }),
+      });
+      const d=await r.json();
+      const text=d.content?.[0]?.text||'Erro ao obter resposta.';
+      let i=0;
+      const iv=setInterval(()=>{
+        setStream(text.slice(0,i));
+        i+=12;
+        if(i>text.length){
+          clearInterval(iv);
+          setMsgs(m=>[...m,{role:'assistant',text}]);
+          setStream('');setLoading(false);
+        }
+      },20);
+    }catch{
+      setMsgs(m=>[...m,{role:'assistant',text:'Erro de conexão. Verifique se a chave da API foi configurada corretamente no Vercel.'}]);
+      setLoading(false);
+    }
+  };
+
+  const renderText=(t)=>t.split('**').map((p,i)=>i%2===1?React.createElement('strong',{key:i,style:{color:'#e5e5e5'}},p):p);
+
+  return(
+    <div style={{display:'flex',height:'100%',overflow:'hidden'}}>
+      {/* Agent list */}
+      <div style={{width:56,background:SF,borderRight:`1px solid ${BD}`,overflow:'auto',flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center',paddingTop:8,gap:4}} className="desktop-only">
+        {AGENTS.map(ag=>(
+          <button key={ag.id} title={ag.name} onClick={()=>switchAgent(ag)} style={{
+            width:38,height:38,borderRadius:8,border:'none',cursor:'pointer',
+            display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,
+            background:agent.id===ag.id?`${ag.color}20`:'transparent',
+            color:agent.id===ag.id?ag.color:'#555',
+            outline:agent.id===ag.id?`1px solid ${ag.color}44`:'none',
+            transition:'all .15s',
+          }}
+          onMouseEnter={e=>{e.currentTarget.style.background=`${ag.color}15`;e.currentTarget.style.color=ag.color;}}
+          onMouseLeave={e=>{e.currentTarget.style.background=agent.id===ag.id?`${ag.color}20`:'transparent';e.currentTarget.style.color=agent.id===ag.id?ag.color:'#555';}}
+          >{ag.icon}</button>
+        ))}
+      </div>
+
+      {/* Chat */}
+      <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+        {/* Header */}
+        <div style={{padding:'10px 14px',borderBottom:`1px solid ${BD}`,background:'#0d0d0d',display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
+          <span style={{color:agent.color,fontSize:18}}>{agent.icon}</span>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{color:TX,fontSize:12,fontWeight:600}}>{agent.name}</div>
+            <div style={{color:MT,fontSize:10,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{agent.role}</div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
+            <div style={{width:5,height:5,borderRadius:'50%',background:'#34d399',boxShadow:'0 0 5px #34d399'}}/>
+            <span style={{color:'#34d399',fontSize:10}}>online</span>
+          </div>
+        </div>
+
+        {/* Mobile agent switcher */}
+        <div className="mobile-nav" style={{overflowX:'auto',background:'#0d0d0d',borderBottom:`1px solid ${BD}`,padding:'6px 10px',gap:6,flexShrink:0}}>
+          {AGENTS.map(ag=>(
+            <button key={ag.id} onClick={()=>switchAgent(ag)} style={{
+              flexShrink:0,padding:'5px 10px',borderRadius:16,border:'none',cursor:'pointer',
+              background:agent.id===ag.id?`${ag.color}22`:'#151515',
+              color:agent.id===ag.id?ag.color:'#666',fontSize:11,
+              outline:agent.id===ag.id?`1px solid ${ag.color}44`:'none',
+            }}>{ag.icon} {ag.name}</button>
+          ))}
+        </div>
+
+        {/* Messages */}
+        <div style={{flex:1,overflow:'auto',padding:14}}>
+          {msgs.map((m,i)=>(
+            <div key={i} className="msg-in" style={{display:'flex',justifyContent:m.role==='user'?'flex-end':'flex-start',marginBottom:14}}>
+              {m.role==='assistant'&&(
+                <div style={{width:28,height:28,borderRadius:'50%',background:`${agent.color}20`,border:`1.5px solid ${agent.color}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:agent.color,marginRight:8,flexShrink:0,marginTop:2}}>{agent.icon}</div>
+              )}
+              <div style={{
+                maxWidth:'82%',padding:'9px 13px',fontSize:13,lineHeight:1.6,
+                background:m.role==='user'?`${G}18`:SF,
+                border:`1px solid ${m.role==='user'?G+'44':BD}`,
+                borderRadius:m.role==='user'?'12px 2px 12px 12px':'2px 12px 12px 12px',
+                color:'#d4d4d4',whiteSpace:'pre-wrap',
+              }}>{renderText(m.text)}</div>
+            </div>
+          ))}
+          {stream&&(
+            <div className="msg-in" style={{display:'flex',marginBottom:14}}>
+              <div style={{width:28,height:28,borderRadius:'50%',background:`${agent.color}20`,border:`1.5px solid ${agent.color}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:agent.color,marginRight:8,flexShrink:0,marginTop:2}}>{agent.icon}</div>
+              <div style={{maxWidth:'82%',padding:'9px 13px',fontSize:13,lineHeight:1.6,background:SF,border:`1px solid ${BD}`,borderRadius:'2px 12px 12px 12px',color:'#d4d4d4',whiteSpace:'pre-wrap'}}>{renderText(stream)}<span style={{animation:'pulse 1s infinite',display:'inline-block',marginLeft:1}}>▋</span></div>
+            </div>
+          )}
+          {loading&&!stream&&(
+            <div style={{display:'flex',padding:'4px 0 4px 36px',gap:5,marginBottom:14}}>
+              {[0,1,2].map(i=><div key={i} style={{width:7,height:7,borderRadius:'50%',background:agent.color,animation:`bounce 1s ease ${i*.15}s infinite`}}/>)}
+            </div>
+          )}
+          <div ref={endRef}/>
+        </div>
+
+        {/* Input */}
+        <div style={{padding:10,borderTop:`1px solid ${BD}`,background:'#0d0d0d',display:'flex',gap:8,flexShrink:0}}>
+          <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&!e.shiftKey&&send()}
+            disabled={loading} placeholder={`Pergunte ao ${agent.name}…`}
+            style={{flex:1,background:'#151515',border:`1px solid ${BD}`,borderRadius:6,padding:'9px 12px',color:TX,fontSize:13,outline:'none',transition:'border-color .2s'}}
+            onFocus={e=>e.target.style.borderColor=agent.color}
+            onBlur={e=>e.target.style.borderColor=BD}
+          />
+          <button onClick={send} disabled={loading||!input.trim()} style={{
+            padding:'9px 16px',borderRadius:6,border:'none',fontFamily:'inherit',fontSize:13,fontWeight:600,
+            background:input.trim()&&!loading?agent.color:'#1a1a1a',
+            color:input.trim()&&!loading?'#000':MT,
+            cursor:input.trim()&&!loading?'pointer':'not-allowed',transition:'all .15s',
+          }}>{loading?'…':'→'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App(){
+  const [active,setActive]=useState('dashboard');
+  const [agent,setAgent]=useState(AGENTS[0]);
+
+  return(
+    <div style={{display:'flex',height:'100%',flexDirection:'column'}}>
+      <div style={{display:'flex',flex:1,overflow:'hidden'}}>
+        <Sidebar active={active} setActive={setActive}/>
+        <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+          {/* Header */}
+          <div style={{padding:'12px 16px',borderBottom:`1px solid ${BD}`,background:SF,display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+            <div>
+              <div style={{color:G,fontSize:10,letterSpacing:2}}>{NAV.find(n=>n.id===active)?.icon} {NAV.find(n=>n.id===active)?.label?.toUpperCase()}</div>
+              <div style={{color:MT,fontSize:10,marginTop:2}}>aureababy.com.br · {new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'numeric',month:'short'})}</div>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <div style={{position:'relative'}}>
+                <div style={{width:30,height:30,borderRadius:'50%',background:'#151515',border:`1px solid ${BD}`,display:'flex',alignItems:'center',justifyContent:'center',color:'#777',fontSize:13,cursor:'pointer'}}>◌</div>
+                <div style={{position:'absolute',top:-2,right:-2,width:10,height:10,borderRadius:'50%',background:'#ef4444',border:`1.5px solid ${BG}`,fontSize:7,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff'}}>3</div>
+              </div>
+              <div style={{width:30,height:30,borderRadius:'50%',background:`${G}20`,border:`1px solid ${G}44`,display:'flex',alignItems:'center',justifyContent:'center',color:G,fontSize:11,fontWeight:700}}>R</div>
+            </div>
+          </div>
+          {/* Page */}
+          <div style={{flex:1,overflow:'hidden'}}>
+            {active==='dashboard'&&<Dashboard setAgent={setAgent} setActive={setActive}/>}
+            {active==='agents'&&<AgentsGrid setAgent={setAgent} setActive={setActive}/>}
+            {active==='chat'&&<ChatView agent={agent} setAgent={setAgent}/>}
+            {active==='tasks'&&<TasksView/>}
+            {active==='approvals'&&<ApprovalsView/>}
+          </div>
+        </div>
+      </div>
+      <BottomNav active={active} setActive={setActive}/>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+</script>
+<script>
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js'));
+  }
+</script>
+</body>
+</html>
